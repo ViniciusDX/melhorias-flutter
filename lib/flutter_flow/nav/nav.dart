@@ -25,6 +25,8 @@ String homeRouteForMember(String? member) {
       return CarRequestWidget.routeName;
     case 'DRIVER':
       return DriverRequestsWidget.routeName;
+    case 'RENTAL':
+      return CarRequestWidget.routeName;
     default:
       return MyRequestsWidget.routeName;
   }
