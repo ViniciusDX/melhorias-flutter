@@ -14,6 +14,7 @@ import 'package:mitsubishi/widgets/notifications/app_notifications.dart';
 
 bool _isAdmin(String? member) => (member ?? '').toUpperCase() == 'ADMIN';
 bool _isDriver(String? member) => (member ?? '').toUpperCase() == 'DRIVER';
+bool _isRental(String? member) => (member ?? '').toUpperCase() == 'RENTAL';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({
@@ -25,6 +26,8 @@ class AppDrawer extends StatelessWidget {
     // USER
     this.onGoMyRequests,
     this.onGoRegisterPreferences,
+    // RENTAL
+    this.onGoRequestForRescheduling,
     // header
     this.userEmail,
     this.member,
@@ -36,6 +39,7 @@ class AppDrawer extends StatelessWidget {
 
   final VoidCallback? onGoMyRequests;
   final VoidCallback? onGoRegisterPreferences;
+  final VoidCallback? onGoRequestForRescheduling;
 
   final String? userEmail;
   final String? member;
@@ -43,11 +47,12 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveEmail =
-    (userEmail?.isNotEmpty ?? false) ? userEmail! : (authManager.email ?? '—');
+        (userEmail?.isNotEmpty ?? false) ? userEmail! : (authManager.email ?? '—');
     final effectiveMember =
-    (member?.isNotEmpty ?? false) ? member! : authManager.member;
+        (member?.isNotEmpty ?? false) ? member! : authManager.member;
     final isAdmin = _isAdmin(effectiveMember);
     final isDriver = _isDriver(effectiveMember);
+    final isRental = _isRental(effectiveMember);
 
     return Drawer(
       elevation: 16,
@@ -103,6 +108,11 @@ class AppDrawer extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsetsDirectional.fromSTEB(22, 5, 10, 12),
                     child: _DriverMenuItems(),
+                  )
+                else if (isRental)
+                  const Padding(
+                    padding: EdgeInsetsDirectional.fromSTEB(22, 5, 10, 12),
+                    child: _RentalMenuItems(),
                   )
                 else
                   const Padding(
@@ -291,6 +301,104 @@ class _DriverMenuItems extends StatelessWidget {
           ),
           label: 'Driver Requests',
           onTap: () => _go(context, () => context.goNamed(DriverRequestsWidget.routeName)),
+        ),
+      ],
+    );
+  }
+}
+
+// ======================= RENTAL MENU =======================
+class _RentalMenuItems extends StatelessWidget {
+  const _RentalMenuItems();
+
+  TextStyle _itemTextStyle(BuildContext context) =>
+      FlutterFlowTheme.of(context).bodyMedium.override(
+        font: GoogleFonts.inter(fontWeight: FontWeight.w700),
+        color: FlutterFlowTheme.of(context).alternate,
+        fontSize: 18,
+      );
+
+  BoxDecoration _itemDecoration(BuildContext context) => BoxDecoration(
+        color: FlutterFlowTheme.of(context).secondaryText,
+        borderRadius: BorderRadius.circular(10),
+      );
+
+  void _go(BuildContext context, VoidCallback nav) {
+    Scaffold.maybeOf(context)?.closeDrawer();
+    WidgetsBinding.instance.addPostFrameCallback((_) => nav());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final appDrawer = context.findAncestorWidgetOfExactType<AppDrawer>()!;
+    final textStyle = _itemTextStyle(context);
+    final deco = _itemDecoration(context);
+
+    Widget buildItem({
+      required Widget leading,
+      required String label,
+      required VoidCallback onTap,
+    }) {
+      return Padding(
+        padding: const EdgeInsetsDirectional.fromSTEB(10, 10, 10, 0),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: onTap,
+          child: Container(
+            height: 47,
+            decoration: deco,
+            child: Row(
+              children: [
+                Padding(
+                  padding: const EdgeInsetsDirectional.fromSTEB(10, 0, 0, 0),
+                  child: leading,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: AutoSizeText(
+                    label,
+                    maxLines: 1,
+                    minFontSize: 12,
+                    stepGranularity: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textStyle,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        buildItem(
+          leading: Icon(
+            Icons.local_taxi,
+            size: 24,
+            color: FlutterFlowTheme.of(context).alternate,
+          ),
+          label: 'Car Request',
+          onTap: () => _go(
+            context,
+            appDrawer.onGoCarRequest ??
+                () => context.goNamed(CarRequestWidget.routeName),
+          ),
+        ),
+        buildItem(
+          leading: Icon(
+            Icons.schedule_send,
+            size: 24,
+            color: FlutterFlowTheme.of(context).alternate,
+          ),
+          label: 'Request for Rescheduling',
+          onTap: () => _go(
+            context,
+            appDrawer.onGoRequestForRescheduling ??
+                () => context.goNamed(MyRequestsWidget.routeName),
+          ),
         ),
       ],
     );
