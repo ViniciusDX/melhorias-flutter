@@ -197,6 +197,25 @@ class AppNotifications {
     return result ?? false;
   }
 
+  static Future<bool> confirmRescheduleStatus(
+    BuildContext context, {
+    required bool approving,
+    required String requestNumber,
+    String? message,
+  }) async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _RescheduleStatusConfirmDialog(
+        approving: approving,
+        requestNumber: requestNumber,
+        message: message,
+      ),
+    );
+
+    return result ?? false;
+  }
+
 
   static Future<void> showPresidenceConflictModal(BuildContext context, {
     required String driverName,
@@ -721,6 +740,126 @@ class _ConfirmDangerScreenState extends State<_ConfirmDangerScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RescheduleStatusConfirmDialog extends StatelessWidget {
+  const _RescheduleStatusConfirmDialog({
+    required this.approving,
+    required this.requestNumber,
+    this.message,
+  });
+
+  final bool approving;
+  final String requestNumber;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    final accent = approving ? theme.success : theme.error;
+    final bubbleColor = accent.withOpacity(0.12);
+    final icon = approving
+        ? Icons.check_circle_rounded
+        : Icons.highlight_off_rounded;
+    final title = approving
+        ? 'Approve rescheduling'
+        : 'Reject rescheduling';
+
+    final trimmedRequest = requestNumber.trim();
+    final formattedRequest = trimmedRequest.isEmpty
+        ? ''
+        : (trimmedRequest.startsWith('#')
+            ? trimmedRequest
+            : '#$trimmedRequest');
+    final targetLabel = formattedRequest.isNotEmpty
+        ? 'request $formattedRequest'
+        : 'this request';
+
+    final body = message ??
+        'Do you want to ${approving ? 'approve' : 'reject'} the rescheduling for $targetLabel?';
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      backgroundColor: Colors.transparent,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 32, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: bubbleColor,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: accent, size: 48),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.headlineMedium.copyWith(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: accent,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: theme.bodyMedium.copyWith(
+                color: theme.primaryText,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 28),
+            FFButtonWidget(
+              onPressed: () => Navigator.of(context).pop(false),
+              text: 'Cancel',
+              options: FFButtonOptions(
+                width: double.infinity,
+                height: 46,
+                padding: const EdgeInsets.all(8),
+                color: const Color(0xFFD4D4D4),
+                textStyle: theme.titleSmall.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+                borderSide: const BorderSide(color: Colors.transparent),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              showLoadingIndicator: false,
+            ),
+            const SizedBox(height: 12),
+            FFButtonWidget(
+              onPressed: () => Navigator.of(context).pop(true),
+              text: approving ? 'Approve' : 'Reject',
+              options: FFButtonOptions(
+                width: double.infinity,
+                height: 46,
+                padding: const EdgeInsets.all(8),
+                color: accent,
+                textStyle: theme.titleSmall.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+                borderSide: const BorderSide(color: Colors.transparent),
+                borderRadius: BorderRadius.circular(24),
+              ),
+              showLoadingIndicator: false,
+            ),
+          ],
         ),
       ),
     );

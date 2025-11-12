@@ -227,6 +227,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       requireAuth: true,
     ),
     FFRoute(
+      name: RentalRescheduleRequestsWidget.routeName,
+      path: RentalRescheduleRequestsWidget.routePath,
+      builder: (context, params) => const RentalRescheduleRequestsWidget(),
+      requireAuth: true,
+    ),
+    FFRoute(
       name: MyRequestsWidget.routeName,
       path: MyRequestsWidget.routePath,
       builder: (context, params) => const MyRequestsWidget(),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 
@@ -645,6 +647,78 @@ class RescheduleCarRequestCall {
 
   static String? message(ApiCallResponse r) =>
       (getJsonField(r.jsonBody, r'$.message') ?? '').toString();
+}
+
+class RescheduleCarRequestListCall {
+  static Future<ApiCallResponse> call({String? bearerToken}) {
+    return ApiManager.instance.makeApiCall(
+      callName: 'RescheduleCarRequestList',
+      apiUrl:
+          _kPrivateApiFunctionName + 'RescheduleCarResquest/GetRescheduleCarRequest',
+      callType: ApiCallType.GET,
+      headers: {
+        'Accept': 'application/json',
+        if ((bearerToken ?? ApiManager.accessToken)?.isNotEmpty == true)
+          'Authorization': 'Bearer ${bearerToken ?? ApiManager.accessToken}',
+      },
+      params: const {},
+      bodyType: BodyType.NONE,
+      returnBody: true,
+      cache: false,
+    );
+  }
+
+  static List<dynamic> items(ApiCallResponse res) {
+    final body = res.jsonBody;
+    if (body is List) return body;
+    if (body is Map) {
+      final items = getJsonField(body, r'$.items');
+      if (items is List) return items;
+      final data = getJsonField(body, r'$.data');
+      if (data is List) return data;
+    }
+    return const [];
+  }
+}
+
+class RescheduleCarRequestUpdateStatusCall {
+  static Future<ApiCallResponse> call({
+    String? bearerToken,
+    required int rescheduleId,
+    required String status,
+  }) {
+    final payload = jsonEncode({
+      'RescheduleId': rescheduleId,
+      'Status': status,
+    });
+
+    return ApiManager.instance.makeApiCall(
+      callName: 'RescheduleCarRequestUpdateStatus',
+      apiUrl:
+          _kPrivateApiFunctionName + 'RescheduleCarResquest/UpdateStatus',
+      callType: ApiCallType.POST,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        if ((bearerToken ?? ApiManager.accessToken)?.isNotEmpty == true)
+          'Authorization': 'Bearer ${bearerToken ?? ApiManager.accessToken}',
+      },
+      body: payload,
+      bodyType: BodyType.JSON,
+      returnBody: true,
+      cache: false,
+    );
+  }
+
+  static bool success(ApiCallResponse res) =>
+      (getJsonField(res.jsonBody, r'$.success') ?? false) == true;
+
+  static String? message(ApiCallResponse res) {
+    final msg = getJsonField(res.jsonBody, r'$.message');
+    if (msg == null) return null;
+    final text = msg.toString().trim();
+    return text.isEmpty ? null : text;
+  }
 }
 
 class TrafficIncidentCreateMultipartCall {
