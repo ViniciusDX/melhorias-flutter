@@ -26,9 +26,22 @@ String homeRouteForMember(String? member) {
     case 'DRIVER':
       return DriverRequestsWidget.routeName;
     case 'RENTAL':
-      return CarRequestWidget.routeName;
+      return RegisterCarRequestWidget.routeName;
     default:
       return MyRequestsWidget.routeName;
+  }
+}
+
+String homePathForMember(String? member) {
+  switch ((member ?? '').toUpperCase()) {
+    case 'ADMIN':
+      return CarRequestWidget.routePath;
+    case 'DRIVER':
+      return DriverRequestsWidget.routePath;
+    case 'RENTAL':
+      return RegisterCarRequestWidget.routePath;
+    default:
+      return MyRequestsWidget.routePath;
   }
 }
 
@@ -36,6 +49,9 @@ Widget _homePageForMember(String? member) {
   final route = homeRouteForMember(member);
   if (route == CarRequestWidget.routeName) return CarRequestWidget();
   if (route == DriverRequestsWidget.routeName) return const DriverRequestsWidget();
+  if (route == RegisterCarRequestWidget.routeName) {
+    return const RegisterCarRequestWidget();
+  }
   return const MyRequestsWidget();
 }
 
@@ -158,13 +174,21 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
     final current = state.uri.toString();
     final onLogin = current == LoginWidget.routePath;
     final onForgot = current == ForgotPasswordOrFirstAccessWidget.routePath;
+    final tokenValid = _isTokenValid();
 
-    if (!_isTokenValid() && !(onLogin || onForgot)) {
+    if (!tokenValid && !(onLogin || onForgot)) {
       appStateNotifier.setRedirectLocationIfUnset(state.uri.toString());
       return LoginWidget.routePath;
     }
 
-    if (_isTokenValid() && (onLogin || onForgot) && appStateNotifier.hasRedirect()) {
+    if (tokenValid && current == '/') {
+      final targetPath = homePathForMember(authManager.member);
+      if (targetPath != current) {
+        return targetPath;
+      }
+    }
+
+    if (tokenValid && (onLogin || onForgot) && appStateNotifier.hasRedirect()) {
       final loc = appStateNotifier.getRedirectLocation();
       appStateNotifier.clearRedirectLocation();
       return loc;
@@ -230,6 +254,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       name: RentalRescheduleRequestsWidget.routeName,
       path: RentalRescheduleRequestsWidget.routePath,
       builder: (context, params) => const RentalRescheduleRequestsWidget(),
+      requireAuth: true,
+    ),  
+    FFRoute(
+      name: RegisterCarRequestWidget.routeName,
+      path: RegisterCarRequestWidget.routePath,
+      builder: (context, params) => const RegisterCarRequestWidget(),
       requireAuth: true,
     ),
     FFRoute(

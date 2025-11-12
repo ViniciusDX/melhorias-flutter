@@ -27,6 +27,7 @@ class AppDrawer extends StatelessWidget {
     this.onGoMyRequests,
     this.onGoRegisterPreferences,
     // RENTAL
+    this.onGoRegisterCarRequest,
     this.onGoRequestForRescheduling,
     // header
     this.userEmail,
@@ -39,6 +40,7 @@ class AppDrawer extends StatelessWidget {
 
   final VoidCallback? onGoMyRequests;
   final VoidCallback? onGoRegisterPreferences;
+  final VoidCallback? onGoRegisterCarRequest;
   final VoidCallback? onGoRequestForRescheduling;
 
   final String? userEmail;
@@ -383,8 +385,9 @@ class _RentalMenuItems extends StatelessWidget {
           label: 'Car Request',
           onTap: () => _go(
             context,
-            appDrawer.onGoCarRequest ??
-                () => context.goNamed(CarRequestWidget.routeName),
+            appDrawer.onGoRegisterCarRequest ??
+                appDrawer.onGoCarRequest ??
+                () => context.goNamed(RegisterCarRequestWidget.routeName),
           ),
         ),
         buildItem(

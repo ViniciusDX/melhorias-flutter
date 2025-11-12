@@ -26,6 +26,12 @@ class IncidentImage {
   IncidentImage({required this.fileName, required this.bytes});
 }
 
+class DriverChangeOption {
+  final int id;
+  final String name;
+  const DriverChangeOption({required this.id, required this.name});
+}
+
 enum PeriodModalMode {
   repeat,
   finishPeriod,
@@ -344,6 +350,21 @@ class AppNotifications {
         costAllocs: costAllocs,
         flights: flights,
         passengersCsv: passengersCsv,
+      ),
+    );
+  }
+
+  static Future<int?> showChangeDriverModal(
+      BuildContext context, {
+        required List<DriverChangeOption> drivers,
+        int? currentDriverId,
+      }) {
+    return showDialog<int>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) => _ChangeDriverDialog(
+        drivers: drivers,
+        currentDriverId: currentDriverId,
       ),
     );
   }
@@ -2755,6 +2776,146 @@ class _FlightInfoModalState extends State<_FlightInfoModal> {
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChangeDriverDialog extends StatefulWidget {
+  final List<DriverChangeOption> drivers;
+  final int? currentDriverId;
+
+  const _ChangeDriverDialog({
+    required this.drivers,
+    this.currentDriverId,
+  });
+
+  @override
+  State<_ChangeDriverDialog> createState() => _ChangeDriverDialogState();
+}
+
+class _ChangeDriverDialogState extends State<_ChangeDriverDialog> {
+  late int? _selected;
+
+  @override
+  void initState() {
+    super.initState();
+    final current = widget.currentDriverId;
+    if (current != null && widget.drivers.any((d) => d.id == current)) {
+      _selected = current;
+    } else {
+      _selected = null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = FlutterFlowTheme.of(context);
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      backgroundColor: Colors.transparent,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Material(
+            color: Colors.white,
+            elevation: 16,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Change Driver',
+                    style: theme.headlineSmall.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Select the driver who will take over this request.',
+                    style: theme.bodyMedium.copyWith(
+                      color: const Color(0xFF6B7280),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<int>(
+                    value: _selected,
+                    items: widget.drivers
+                        .map(
+                          (d) => DropdownMenuItem<int>(
+                            value: d.id,
+                            child: Text(d.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => setState(() => _selected = value),
+                    decoration: InputDecoration(
+                      labelText: 'Driver',
+                      labelStyle: theme.labelLarge.copyWith(
+                        color: const Color(0xFF6B7280),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 14,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FFButtonWidget(
+                          onPressed: () =>
+                              Navigator.of(context).pop<int?>(null),
+                          text: 'Cancel',
+                          options: FFButtonOptions(
+                            height: 46,
+                            color: theme.secondary,
+                            textStyle: theme.titleSmall.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          showLoadingIndicator: false,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FFButtonWidget(
+                          onPressed: (_selected == null)
+                              ? null
+                              : () =>
+                                  Navigator.of(context).pop<int>(_selected!),
+                          text: 'Change',
+                          options: FFButtonOptions(
+                            height: 46,
+                            color: theme.primary,
+                            textStyle: theme.titleSmall.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            borderRadius: BorderRadius.circular(24),
+                            disabledColor: const Color(0xFF9CA3AF),
+                          ),
+                          showLoadingIndicator: false,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),

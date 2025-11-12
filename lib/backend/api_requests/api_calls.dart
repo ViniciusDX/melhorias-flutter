@@ -3558,6 +3558,50 @@ class CarRequestsChangeDriverCall {
   }
 }
 
+class DriversAvailableToChangeCall {
+  static Future<ApiCallResponse> call({
+    required String bearerToken,
+    required int carRequestId,
+  }) {
+    return ApiManager.instance.makeApiCall(
+      callName: 'DriversAvailableToChange',
+      apiUrl: _kPrivateApiFunctionName +
+          'Drivers/GetAvailableToChange/$carRequestId',
+      callType: ApiCallType.GET,
+      headers: {
+        'Authorization': 'Bearer $bearerToken',
+        'Accept': 'application/json',
+      },
+      params: const {},
+      returnBody: true,
+      bodyType: BodyType.JSON,
+      cache: false,
+    );
+  }
+
+  static List<dynamic> items(ApiCallResponse res) {
+    final body = res.jsonBody;
+    if (body is List) return body;
+    final items = getJsonField(body, r'$.items');
+    if (items is List) return items;
+    return const [];
+  }
+
+  static int? id(dynamic item) {
+    final value = getJsonField(item, r'$.id');
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '');
+  }
+
+  static String? name(dynamic item) {
+    final name = getJsonField(item, r'$.fullName') ??
+        getJsonField(item, r'$.name') ??
+        getJsonField(item, r'$.description');
+    return name?.toString();
+  }
+}
+
 // =================== REQUEST ACTIONS (NOVOS) ===================
 // POST /api/CarRequests/ExtendPeriod
 class CarRequestsExtendPeriodCall {
