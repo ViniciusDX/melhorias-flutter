@@ -400,7 +400,7 @@ class _RentalMenuItems extends StatelessWidget {
           onTap: () => _go(
             context,
             appDrawer.onGoRequestForRescheduling ??
-                () => context.goNamed(MyRequestsWidget.routeName),
+                () => context.goNamed(RentalRescheduleRequestsWidget.routeName),
           ),
         ),
       ],

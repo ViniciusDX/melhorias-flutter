@@ -251,6 +251,12 @@ GoRouter createRouter(AppStateNotifier appStateNotifier) => GoRouter(
       requireAuth: true,
     ),
     FFRoute(
+      name: RentalRescheduleRequestsWidget.routeName,
+      path: RentalRescheduleRequestsWidget.routePath,
+      builder: (context, params) => const RentalRescheduleRequestsWidget(),
+      requireAuth: true,
+    ),  
+    FFRoute(
       name: RegisterCarRequestWidget.routeName,
       path: RegisterCarRequestWidget.routePath,
       builder: (context, params) => const RegisterCarRequestWidget(),
