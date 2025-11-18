@@ -14,7 +14,6 @@ import '/widgets/add_fab_button.dart';
 import '/backend/api_requests/api_calls.dart';
 import '/backend/api_requests/api_manager.dart';
 import 'package:mitsubishi/widgets/notifications/app_notifications.dart';
-import 'package:mitsubishi/widgets/notifications/modal_success_device_sms_validation_model.dart';
 
 import 'driver_form_widget.dart';
 import 'car_preference_widget.dart';
@@ -100,7 +99,6 @@ class DriversWidget extends StatefulWidget {
 
 class _DriversWidgetState extends State<DriversWidget> {
   final TextEditingController _searchCtrl = TextEditingController();
-  late final ModalSuccessDeviceSmsValidationModel _loadingModel;
 
   String? _error;
   int _page = 1;
@@ -111,30 +109,8 @@ class _DriversWidgetState extends State<DriversWidget> {
   final Set<String> _ids = {};
 
   bool _isFetching = false;
-
-  OverlayEntry? _listLoadingOverlay;
-  void _showListLoadingOverlay() {
-    if (!mounted || _listLoadingOverlay != null) return;
-    final overlay = Overlay.of(context, rootOverlay: true);
-    if (overlay == null) return;
-    _listLoadingOverlay = OverlayEntry(
-      builder: (_) => Positioned.fill(
-        child: AbsorbPointer(
-          absorbing: true,
-          child: Container(
-            color: Colors.black.withOpacity(0.25),
-            child: const Center(child: CircularProgressIndicator()),
-          ),
-        ),
-      ),
-    );
-    overlay.insert(_listLoadingOverlay!);
-  }
-
-  void _hideListLoadingOverlay() {
-    _listLoadingOverlay?.remove();
-    _listLoadingOverlay = null;
-  }
+  bool _isInitialLoad = true;
+  bool _isLoadingMore = false;
 
   Timer? _searchDebounce;
   String _searchQuery = '';
@@ -155,31 +131,17 @@ class _DriversWidgetState extends State<DriversWidget> {
   @override
   void initState() {
     super.initState();
-    _loadingModel = ModalSuccessDeviceSmsValidationModel()
-      ..addListener(_onLoadingChanged);
-
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      _loadingModel.setLoading(true);
-      await _loadFirstPage(showOverlay: false);
-      _loadingModel.setLoading(false);
-    });
-  }
-
-  void _onLoadingChanged() {
-    if (mounted) setState(() {});
+    _loadFirstPage();
   }
 
   @override
   void dispose() {
-    _hideListLoadingOverlay();
     _searchDebounce?.cancel();
-    _loadingModel.removeListener(_onLoadingChanged);
-    _loadingModel.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  Future<void> _loadFirstPage({bool showOverlay = true}) async {
+  Future<void> _loadFirstPage() async {
     if (_isFetching) return;
     _isFetching = true;
 
@@ -194,10 +156,9 @@ class _DriversWidgetState extends State<DriversWidget> {
         _isLastPage = false;
         _drivers.clear();
         _ids.clear();
+        _isInitialLoad = true;
       });
     }
-
-    if (showOverlay) _showListLoadingOverlay();
 
     try {
       final res = await DriversListCall.call(
@@ -215,18 +176,27 @@ class _DriversWidgetState extends State<DriversWidget> {
         }
         setState(() {
           _isLastPage = newItems.length < _pageSize;
+          _isInitialLoad = false;
         });
       } else {
         setState(() {
           _error = 'Failed to load drivers (${res.statusCode}).';
+          _isInitialLoad = false;
         });
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Error loading drivers.');
+      setState(() {
+        _error = 'Error loading drivers.';
+        _isInitialLoad = false;
+      });
     } finally {
       _isFetching = false;
-      if (showOverlay) _hideListLoadingOverlay();
+      if (mounted && _isInitialLoad) {
+        setState(() {
+          _isInitialLoad = false;
+        });
+      }
     }
   }
 
@@ -234,10 +204,14 @@ class _DriversWidgetState extends State<DriversWidget> {
     if (_isFetching || _isLastPage || _searchQuery.isNotEmpty) return;
     _isFetching = true;
 
+    if (mounted) {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
+
     final nextPage = _page + 1;
     _driversLog('loadMore -> page: $nextPage, size: $_pageSize');
-
-    _showListLoadingOverlay();
 
     try {
       final res = await DriversListCall.call(
@@ -273,7 +247,11 @@ class _DriversWidgetState extends State<DriversWidget> {
       _driversLog('loadMore exception: $e');
     } finally {
       _isFetching = false;
-      _hideListLoadingOverlay();
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -350,9 +328,8 @@ class _DriversWidgetState extends State<DriversWidget> {
       _isLastPage = false;
       _drivers.clear();
       _ids.clear();
+      _isInitialLoad = true;
     });
-
-    _showListLoadingOverlay();
 
     try {
       while (mounted && gen == _searchGeneration && !_isLastPage) {
@@ -391,7 +368,11 @@ class _DriversWidgetState extends State<DriversWidget> {
       setState(() => _error = 'Error loading drivers.');
     } finally {
       _isFetching = false;
-      _hideListLoadingOverlay();
+      if (mounted) {
+        setState(() {
+          _isInitialLoad = false;
+        });
+      }
     }
   }
 
@@ -585,6 +566,10 @@ class _DriversWidgetState extends State<DriversWidget> {
                   builder: (context, c) {
                     final isCompact = c.maxWidth < 900;
                     if (itemsToRender.isEmpty) {
+                      if (_isInitialLoad) {
+                        return const Center(
+                            child: CircularProgressIndicator());
+                      }
                       return ListView(
                         children: const [
                           SizedBox(height: 40),
@@ -595,12 +580,16 @@ class _DriversWidgetState extends State<DriversWidget> {
 
                     if (isCompact) {
                       final count = itemsToRender.length;
+                      final totalCount = count + (_isLoadingMore ? 1 : 0);
                       return ListView.separated(
                         padding: const EdgeInsets.only(bottom: 110),
-                        itemCount: count,
+                        itemCount: totalCount,
                         separatorBuilder: (_, __) =>
-                        const SizedBox(height: 12),
+                            const SizedBox(height: 12),
                         itemBuilder: (_, i) {
+                          if (i >= count) {
+                            return _buildLoadingFooter();
+                          }
                           final d = itemsToRender[i];
                           return _buildSwipeToDelete(
                             driver: d,
@@ -615,6 +604,7 @@ class _DriversWidgetState extends State<DriversWidget> {
                       return _DriversTable(
                         items: itemsToRender,
                         onRowTap: _openDriverSheet,
+                        footer: _isLoadingMore ? _buildLoadingFooter() : null,
                       );
                     }
                   },
@@ -647,9 +637,20 @@ class _DriversWidgetState extends State<DriversWidget> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: _loadingModel.isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : content,
+      body: content,
+    );
+  }
+
+  Widget _buildLoadingFooter() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: SizedBox(
+          height: 24,
+          width: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.5),
+        ),
+      ),
     );
   }
 
@@ -1204,69 +1205,79 @@ class _DriverCard extends StatelessWidget {
 }
 
 class _DriversTable extends StatelessWidget {
-  const _DriversTable({required this.items, required this.onRowTap});
+  const _DriversTable({
+    required this.items,
+    required this.onRowTap,
+    this.footer,
+  });
 
   final List<DriverViewModel> items;
   final void Function(DriverViewModel) onRowTap;
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
     final theme = FlutterFlowTheme.of(context);
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
-      child: DataTable(
-        headingRowColor: WidgetStatePropertyAll(theme.secondaryBackground),
-        columns: const [
-          DataColumn(label: Text('Photo')),
-          DataColumn(label: Text('Name')),
-          DataColumn(label: Text('Email')),
-          DataColumn(label: Text('Phone')),
-          DataColumn(label: Text('Company')),
-          DataColumn(label: Text('Jpn')),
-          DataColumn(label: Text('Eng')),
-          DataColumn(label: Text('Status')),
-        ],
-        rows: items.map((d) {
-          final statusChip = Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: d.active ? Colors.green : Colors.red,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(d.active ? 'Active' : 'Inactive',
-                style: const TextStyle(color: Colors.white)),
-          );
-          return DataRow(
-            onSelectChanged: (_) => onRowTap(d),
-            cells: [
-              DataCell(
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: const Color(0xFFE5E7EB),
-                  child: ClipOval(
-                    child: (d.photoBytes == null)
-                        ? const Icon(Icons.person,
-                        size: 16, color: Color(0xFF9CA3AF))
-                        : Image.memory(
-                      d.photoBytes!,
-                      width: 32,
-                      height: 32,
-                      fit: BoxFit.cover,
-                      filterQuality: FilterQuality.low,
+      child: Column(
+        children: [
+          DataTable(
+            headingRowColor: WidgetStatePropertyAll(theme.secondaryBackground),
+            columns: const [
+              DataColumn(label: Text('Photo')),
+              DataColumn(label: Text('Name')),
+              DataColumn(label: Text('Email')),
+              DataColumn(label: Text('Phone')),
+              DataColumn(label: Text('Company')),
+              DataColumn(label: Text('Jpn')),
+              DataColumn(label: Text('Eng')),
+              DataColumn(label: Text('Status')),
+            ],
+            rows: items.map((d) {
+              final statusChip = Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: d.active ? Colors.green : Colors.red,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(d.active ? 'Active' : 'Inactive',
+                    style: const TextStyle(color: Colors.white)),
+              );
+              return DataRow(
+                onSelectChanged: (_) => onRowTap(d),
+                cells: [
+                  DataCell(
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: const Color(0xFFE5E7EB),
+                      child: ClipOval(
+                        child: (d.photoBytes == null)
+                            ? const Icon(Icons.person,
+                            size: 16, color: Color(0xFF9CA3AF))
+                            : Image.memory(
+                          d.photoBytes!,
+                          width: 32,
+                          height: 32,
+                          fit: BoxFit.cover,
+                          filterQuality: FilterQuality.low,
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ),
-              DataCell(Text(d.name)),
-              DataCell(Text(d.email)),
-              DataCell(Text(d.phone ?? '')),
-              DataCell(Text(d.company ?? '')),
-              DataCell(Text(d.speaksJpn ? 'Yes' : 'No')),
-              DataCell(Text(d.speaksEng ? 'Yes' : 'No')),
-              DataCell(statusChip),
-            ],
-          );
-        }).toList(),
+                  DataCell(Text(d.name)),
+                  DataCell(Text(d.email)),
+                  DataCell(Text(d.phone ?? '')),
+                  DataCell(Text(d.company ?? '')),
+                  DataCell(Text(d.speaksJpn ? 'Yes' : 'No')),
+                  DataCell(Text(d.speaksEng ? 'Yes' : 'No')),
+                  DataCell(statusChip),
+                ],
+              );
+            }).toList(),
+          ),
+          if (footer != null) footer!,
+        ],
       ),
     );
   }
