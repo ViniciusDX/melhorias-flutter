@@ -100,6 +100,7 @@ class DriversWidget extends StatefulWidget {
 
 class _DriversWidgetState extends State<DriversWidget> {
   final TextEditingController _searchCtrl = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   late final ModalSuccessDeviceSmsValidationModel _loadingModel;
 
   String? _error;
@@ -157,6 +158,7 @@ class _DriversWidgetState extends State<DriversWidget> {
     super.initState();
     _loadingModel = ModalSuccessDeviceSmsValidationModel()
       ..addListener(_onLoadingChanged);
+    _scrollController.addListener(_handleScroll);
 
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _loadingModel.setLoading(true);
@@ -169,6 +171,15 @@ class _DriversWidgetState extends State<DriversWidget> {
     if (mounted) setState(() {});
   }
 
+  void _handleScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_isFetching || _isLastPage || _searchQuery.isNotEmpty) return;
+    final position = _scrollController.position;
+    if (position.extentAfter < 200) {
+      _loadMore();
+    }
+  }
+
   @override
   void dispose() {
     _hideListLoadingOverlay();
@@ -176,6 +187,8 @@ class _DriversWidgetState extends State<DriversWidget> {
     _loadingModel.removeListener(_onLoadingChanged);
     _loadingModel.dispose();
     _searchCtrl.dispose();
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -531,98 +544,61 @@ class _DriversWidgetState extends State<DriversWidget> {
 
     final itemsToRender = _drivers;
 
-    final content = SafeArea(
-      child: Padding(
+    final slivers = <Widget>[
+      SliverPadding(
         padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-        child: Column(
-          children: [
-            TextField(
-              controller: _searchCtrl,
-              onChanged: _handleSearchChanged,
-              decoration: InputDecoration(
-                hintText: 'Search drivers by name',
-                prefixIcon: const Icon(Icons.search),
-                isDense: true,
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide:
-                  BorderSide(color: theme.alternate.withOpacity(0.25)),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            Expanded(
-              child: (_error != null)
-                  ? _ErrorView(
-                  message: _error!, onRetry: () => _loadFirstPage())
-                  : NotificationListener<ScrollNotification>(
-                onNotification: (n) {
-                  if (_isFetching ||
-                      _isLastPage ||
-                      _searchQuery.isNotEmpty) {
-                    return false;
-                  }
-                  if (n.metrics.pixels >=
-                      n.metrics.maxScrollExtent - 200) {
-                    _loadMore();
-                  }
-                  return false;
-                },
-                child: LayoutBuilder(
-                  builder: (context, c) {
-                    final isCompact = c.maxWidth < 900;
-                    if (itemsToRender.isEmpty) {
-                      return ListView(
-                        children: const [
-                          SizedBox(height: 40),
-                          Center(child: Text('No matching records found')),
-                        ],
-                      );
-                    }
-
-                    if (isCompact) {
-                      final count = itemsToRender.length;
-                      return ListView.separated(
-                        padding: const EdgeInsets.only(bottom: 110),
-                        itemCount: count,
-                        separatorBuilder: (_, __) =>
-                        const SizedBox(height: 12),
-                        itemBuilder: (_, i) {
-                          final d = itemsToRender[i];
-                          return _buildSwipeToDelete(
-                            driver: d,
-                            child: _DriverCard(
-                              data: d,
-                              onTap: () => _openDriverSheet(d),
-                            ),
-                          );
-                        },
-                      );
-                    } else {
-                      return _DriversTable(
-                        items: itemsToRender,
-                        onRowTap: _openDriverSheet,
-                      );
-                    }
-                  },
+        sliver: SliverToBoxAdapter(
+          child: Column(
+            children: [
+              TextField(
+                controller: _searchCtrl,
+                onChanged: _handleSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'Search drivers by name',
+                  prefixIcon: const Icon(Icons.search),
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        BorderSide(color: theme.alternate.withOpacity(0.25)),
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
+      ),
+      if (_error != null)
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          sliver: SliverToBoxAdapter(
+            child: _ErrorView(
+              message: _error!,
+              onRetry: () => _loadFirstPage(),
+            ),
+          ),
+        )
+      else
+        _buildDriversSliver(itemsToRender),
+    ];
+
+    final content = SafeArea(
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: slivers,
       ),
     );
 
@@ -650,6 +626,83 @@ class _DriversWidgetState extends State<DriversWidget> {
       body: _loadingModel.isLoading
           ? const Center(child: CircularProgressIndicator())
           : content,
+    );
+  }
+
+  bool get _showingSkeletonPlaceholders => _drivers.isEmpty && _isFetching;
+
+  Widget _buildDriversSliver(List<DriverViewModel> itemsToRender) {
+    if (_showingSkeletonPlaceholders) {
+      return SliverPadding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (_, __) => const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: _DriverCardSkeleton(),
+            ),
+            childCount: 6,
+          ),
+        ),
+      );
+    }
+
+    if (itemsToRender.isEmpty) {
+      return SliverFillRemaining(
+        hasScrollBody: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              SizedBox(height: 40),
+              Center(child: Text('No matching records found')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.crossAxisExtent < 900;
+        if (isCompact) {
+          final count = itemsToRender.length;
+          return SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 110),
+            sliver: SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final d = itemsToRender[index];
+                  return Padding(
+                    padding: EdgeInsets.only(
+                      bottom: index == count - 1 ? 0 : 12,
+                    ),
+                    child: _buildSwipeToDelete(
+                      driver: d,
+                      child: _DriverCard(
+                        data: d,
+                        onTap: () => _openDriverSheet(d),
+                      ),
+                    ),
+                  );
+                },
+                childCount: count,
+              ),
+            ),
+          );
+        }
+
+        return SliverPadding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+          sliver: SliverToBoxAdapter(
+            child: _DriversTable(
+              items: itemsToRender,
+              onRowTap: _openDriverSheet,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1047,19 +1100,23 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        const SizedBox(height: 40),
-        Center(child: Text(message)),
-        const SizedBox(height: 12),
-        Center(
-          child: OutlinedButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Try again'),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 40),
+          Center(child: Text(message)),
+          const SizedBox(height: 12),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try again'),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1198,6 +1255,84 @@ class _DriverCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DriverCardSkeleton extends StatelessWidget {
+  const _DriverCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: const [
+          _SkeletonCircle(diameter: 48),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SkeletonLine(widthFactor: 0.65),
+                SizedBox(height: 12),
+                _SkeletonLine(widthFactor: 0.9),
+                SizedBox(height: 12),
+                _SkeletonLine(widthFactor: 0.4),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonLine extends StatelessWidget {
+  const _SkeletonLine({this.widthFactor = 1});
+
+  final double widthFactor;
+
+  @override
+  Widget build(BuildContext context) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: 14,
+        decoration: BoxDecoration(
+          color: Colors.grey.shade300,
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonCircle extends StatelessWidget {
+  const _SkeletonCircle({required this.diameter});
+
+  final double diameter;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: diameter,
+      height: diameter,
+      decoration: BoxDecoration(
+        color: Colors.grey.shade300,
+        shape: BoxShape.circle,
       ),
     );
   }
