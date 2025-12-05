@@ -873,8 +873,19 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
               child: ListTile(
                 dense: true,
                 leading: const Icon(Icons.place_outlined),
-                title: Text(main, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: sec.isEmpty ? null : Text(sec),
+                title: Text(
+                  main,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: sec.isEmpty
+                    ? null
+                    : Text(
+                        sec,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                 onTap: () => _onPredictionTap(p),
               ),
             );
