@@ -109,6 +109,7 @@ class _DriversWidgetState extends State<DriversWidget> {
 
   final List<DriverViewModel> _drivers = [];
   final Set<String> _ids = {};
+  final Map<String, Uint8List?> _photoCache = {};
 
   bool _isFetching = false;
 
@@ -138,19 +139,6 @@ class _DriversWidgetState extends State<DriversWidget> {
 
   Timer? _searchDebounce;
   String _searchQuery = '';
-  int _searchGeneration = 0;
-
-  String _norm(String s) {
-    return s
-        .toLowerCase()
-        .replaceAll(RegExp(r'[áàâãä]'), 'a')
-        .replaceAll(RegExp(r'[éèêë]'), 'e')
-        .replaceAll(RegExp(r'[íìîï]'), 'i')
-        .replaceAll(RegExp(r'[óòôõö]'), 'o')
-        .replaceAll(RegExp(r'[úùûü]'), 'u')
-        .replaceAll(RegExp(r'[ç]'), 'c')
-        .replaceAll(RegExp(r'[ñ]'), 'n');
-  }
 
   @override
   void initState() {
@@ -179,12 +167,14 @@ class _DriversWidgetState extends State<DriversWidget> {
     super.dispose();
   }
 
-  Future<void> _loadFirstPage({bool showOverlay = true}) async {
+  Future<void> _loadFirstPage({bool showOverlay = true, String? search}) async {
     if (_isFetching) return;
     _isFetching = true;
 
+    final searchTerm = search?.trim() ?? _searchQuery;
+
     _driversLog(
-      'loadFirstPage(pageSize: $_pageSize) token: ${_mask(ApiManager.accessToken)}',
+      'loadFirstPage(pageSize: $_pageSize, search: ${_mask(searchTerm)}) token: ${_mask(ApiManager.accessToken)}',
     );
 
     if (mounted) {
@@ -194,6 +184,8 @@ class _DriversWidgetState extends State<DriversWidget> {
         _isLastPage = false;
         _drivers.clear();
         _ids.clear();
+        _photoCache.clear();
+        _searchQuery = searchTerm;
       });
     }
 
@@ -204,6 +196,7 @@ class _DriversWidgetState extends State<DriversWidget> {
         bearerToken: ApiManager.accessToken,
         page: _page,
         pageSize: _pageSize,
+        search: searchTerm.isEmpty ? null : searchTerm,
       );
 
       if (!mounted) return;
@@ -231,11 +224,12 @@ class _DriversWidgetState extends State<DriversWidget> {
   }
 
   Future<void> _loadMore() async {
-    if (_isFetching || _isLastPage || _searchQuery.isNotEmpty) return;
+    if (_isFetching || _isLastPage) return;
     _isFetching = true;
 
     final nextPage = _page + 1;
-    _driversLog('loadMore -> page: $nextPage, size: $_pageSize');
+    _driversLog(
+        'loadMore -> page: $nextPage, size: $_pageSize, search: ${_mask(_searchQuery)}');
 
     _showListLoadingOverlay();
 
@@ -244,6 +238,7 @@ class _DriversWidgetState extends State<DriversWidget> {
         bearerToken: ApiManager.accessToken,
         page: nextPage,
         pageSize: _pageSize,
+        search: _searchQuery.isEmpty ? null : _searchQuery,
       );
 
       if (!mounted) return;
@@ -293,12 +288,20 @@ class _DriversWidgetState extends State<DriversWidget> {
     return null;
   }
 
+  Uint8List? _photoFor(DriverViewModel d) {
+    final cached = _photoCache[d.id];
+    if (cached != null || _photoCache.containsKey(d.id)) return cached;
+
+    final decoded = decodeDriverPhoto(d.base64Photo);
+    _photoCache[d.id] = decoded;
+    return decoded;
+  }
+
   List<DriverViewModel> _parseItems(ApiCallResponse res) {
     final items = DriversListCall.items(res);
     return items.map((e) {
       final id = (DriversListCall.id(e) ?? '').toString();
       final b64 = _extractBase64Photo(e);
-      final bytes = decodeDriverPhoto(b64);
       return DriverViewModel(
         id: id,
         name: DriversListCall.name(e) ?? '-',
@@ -314,7 +317,6 @@ class _DriversWidgetState extends State<DriversWidget> {
         speaksJpn: DriversListCall.japanese(e),
         speaksEng: DriversListCall.english(e),
         base64Photo: b64,
-        photoBytes: bytes,
       );
     }).toList();
   }
@@ -322,79 +324,11 @@ class _DriversWidgetState extends State<DriversWidget> {
   void _handleSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 400), () {
-      final q = _norm(value.trim());
+      final q = value.trim();
       if (q == _searchQuery) return;
 
-      _searchQuery = q;
-      _searchGeneration++;
-
-      if (_searchQuery.isEmpty) {
-        _loadFirstPage();
-      } else {
-        _runCrossPageSearch(_searchQuery, _searchGeneration);
-      }
+      _loadFirstPage(search: q);
     });
-  }
-
-  bool _matchesQuery(DriverViewModel d, String q) {
-    if (q.isEmpty) return true;
-    final name = _norm(d.name);
-    return name.contains(q);
-  }
-
-  Future<void> _runCrossPageSearch(String q, int gen) async {
-    if (_isFetching) return;
-    _isFetching = true;
-
-    setState(() {
-      _error = null;
-      _page = 1;
-      _isLastPage = false;
-      _drivers.clear();
-      _ids.clear();
-    });
-
-    _showListLoadingOverlay();
-
-    try {
-      while (mounted && gen == _searchGeneration && !_isLastPage) {
-        final res = await DriversListCall.call(
-          bearerToken: ApiManager.accessToken,
-          page: _page,
-          pageSize: _pageSize,
-        );
-
-        if (!mounted || gen != _searchGeneration) break;
-
-        if (!res.succeeded) {
-          setState(() => _error = 'Failed to load drivers (${res.statusCode}).');
-          break;
-        }
-
-        final pageItems = _parseItems(res);
-
-        for (final d in pageItems.where((d) => _matchesQuery(d, q))) {
-          if (_ids.add(d.id)) {
-            _drivers.add(d);
-          }
-        }
-
-        final last = pageItems.length < _pageSize;
-
-        setState(() {
-          _isLastPage = last;
-          _page = _page + 1;
-        });
-
-        if (last) break;
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _error = 'Error loading drivers.');
-    } finally {
-      _isFetching = false;
-      _hideListLoadingOverlay();
-    }
   }
 
   Future<Map<String, dynamic>> _prepareFullBody(
@@ -608,6 +542,7 @@ class _DriversWidgetState extends State<DriversWidget> {
                             driver: d,
                             child: _DriverCard(
                               data: d,
+                              avatarBytes: _photoFor(d),
                               onTap: () => _openDriverSheet(d),
                             ),
                           );
@@ -617,6 +552,7 @@ class _DriversWidgetState extends State<DriversWidget> {
                       return _DriversTable(
                         items: itemsToRender,
                         onRowTap: _openDriverSheet,
+                        photoFor: _photoFor,
                       );
                     }
                   },
@@ -796,6 +732,7 @@ class _DriversWidgetState extends State<DriversWidget> {
         return StatefulBuilder(
           builder: (context, setModal) {
             final bottom = MediaQuery.of(context).viewInsets.bottom + 20;
+            final avatarBytes = _photoFor(d);
 
             return SafeArea(
               top: false,
@@ -821,11 +758,11 @@ class _DriversWidgetState extends State<DriversWidget> {
                         radius: 34,
                         backgroundColor: const Color(0xFFE5E7EB),
                         child: ClipOval(
-                          child: (d.photoBytes == null)
+                          child: (avatarBytes == null)
                               ? const Icon(Icons.person,
                               size: 34, color: Color(0xFF9CA3AF))
                               : Image.memory(
-                            d.photoBytes!,
+                            avatarBytes,
                             width: 68,
                             height: 68,
                             fit: BoxFit.cover,
@@ -1083,7 +1020,7 @@ class DriverViewModel {
     this.speaksEng = false,
     this.base64Photo,
     Uint8List? photoBytes,
-  }) : photoBytes = photoBytes ?? decodeDriverPhoto(base64Photo);
+  }) : photoBytes = photoBytes;
 
   final String id;
   final String name;
@@ -1106,10 +1043,15 @@ class DriverViewModel {
 }
 
 class _DriverCard extends StatelessWidget {
-  const _DriverCard({required this.data, required this.onTap});
+  const _DriverCard({
+    required this.data,
+    required this.onTap,
+    this.avatarBytes,
+  });
 
   final DriverViewModel data;
   final VoidCallback onTap;
+  final Uint8List? avatarBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -1151,11 +1093,11 @@ class _DriverCard extends StatelessWidget {
               radius: 22,
               backgroundColor: const Color(0xFFE5E7EB),
               child: ClipOval(
-                child: (data.photoBytes == null)
+                child: (avatarBytes == null)
                     ? const Icon(Icons.person,
                     size: 22, color: Color(0xFF9CA3AF))
                     : Image.memory(
-                  data.photoBytes!,
+                  avatarBytes!,
                   width: 44,
                   height: 44,
                   fit: BoxFit.cover,
@@ -1208,10 +1150,15 @@ class _DriverCard extends StatelessWidget {
 }
 
 class _DriversTable extends StatelessWidget {
-  const _DriversTable({required this.items, required this.onRowTap});
+  const _DriversTable({
+    required this.items,
+    required this.onRowTap,
+    required this.photoFor,
+  });
 
   final List<DriverViewModel> items;
   final void Function(DriverViewModel) onRowTap;
+  final Uint8List? Function(DriverViewModel) photoFor;
 
   @override
   Widget build(BuildContext context) {
@@ -1240,6 +1187,7 @@ class _DriversTable extends StatelessWidget {
             child: Text(d.active ? 'Active' : 'Inactive',
                 style: const TextStyle(color: Colors.white)),
           );
+          final photo = photoFor(d);
           return DataRow(
             onSelectChanged: (_) => onRowTap(d),
             cells: [
@@ -1248,11 +1196,11 @@ class _DriversTable extends StatelessWidget {
                   radius: 16,
                   backgroundColor: const Color(0xFFE5E7EB),
                   child: ClipOval(
-                    child: (d.photoBytes == null)
+                    child: (photo == null)
                         ? const Icon(Icons.person,
                         size: 16, color: Color(0xFF9CA3AF))
                         : Image.memory(
-                      d.photoBytes!,
+                      photo,
                       width: 32,
                       height: 32,
                       fit: BoxFit.cover,
