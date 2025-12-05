@@ -1069,10 +1069,15 @@ class DriversListCall {
     String? bearerToken,
     int page = 1,
     int pageSize = 5,
+    String? search,
   }) {
+    final searchTerm = search?.trim();
+    final searchParam =
+        (searchTerm?.isNotEmpty == true) ? '&search=${Uri.encodeQueryComponent(searchTerm!)}' : '';
     return ApiManager.instance.makeApiCall(
       callName: 'DriversList',
-      apiUrl: _kPrivateApiFunctionName + 'drivers/index/app?pageSize=$pageSize&page=$page',
+      apiUrl: _kPrivateApiFunctionName +
+          'drivers/index/app?pageSize=$pageSize&page=$page$searchParam',
       callType: ApiCallType.GET,
       headers: {
         'Accept': 'application/json',
