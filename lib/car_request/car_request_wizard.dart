@@ -2296,6 +2296,33 @@ class _CarRequestWizardState extends State<CarRequestWizard> {
           ),
         ),
 
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.pin_drop_outlined),
+                  onPressed: _isAdjust ? null : _applyDepartureFromSearch,
+                  label: const Text('Set as Departure'),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: SizedBox(
+                height: 48,
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.add_location_alt_outlined),
+                  onPressed: _applyDestinationFromSearch,
+                  label: const Text('Add as Destination'),
+                ),
+              ),
+            ),
+          ],
+        ),
+
         const SizedBox(height: 16),
         Text('Departure*', style: _h2),
         const SizedBox(height: 6),
@@ -2724,7 +2751,7 @@ class _CarRequestWizardState extends State<CarRequestWizard> {
             return ListTile(
               leading: const Icon(Icons.place_outlined),
               title: Text(p, style: const TextStyle(fontWeight: FontWeight.w600)),
-              onTap: () => _onPlaceTap(p),
+              onTap: () => _onPredictionTap(p),
             );
           },
         ),
@@ -2737,9 +2764,8 @@ class _CarRequestWizardState extends State<CarRequestWizard> {
     _placeEntry = null;
   }
 
-  Future<void> _onPlaceTap(String placeRaw) async {
-    _closePlaceOverlay();
-    String place = placeRaw;
+  String _normalizePlace(String placeRaw) {
+    String place = placeRaw.trim();
     if (!_onlyFavorites) {
       const sep = '—';
       if (place.contains(sep)) {
@@ -2749,68 +2775,50 @@ class _CarRequestWizardState extends State<CarRequestWizard> {
         }
       }
     }
+    return place;
+  }
 
+  void _onPredictionTap(String placeRaw) {
+    final place = _normalizePlace(placeRaw);
+    setState(() => _placeCtrl.text = place);
+    _placeFocus.unfocus();
+    _closePlaceOverlay();
+  }
+
+  Future<void> _applyDepartureFromSearch() async {
     final allowSetDeparture = !_isAdjust;
+    if (!allowSetDeparture) return;
 
-    final res = await showModalBottomSheet<String>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (sheetCtx) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(place, style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              if (allowSetDeparture) ...[
-                SizedBox(
-                  height: 48,
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.pin_drop_outlined),
-                    onPressed: () => Navigator.pop(sheetCtx, 'dep'),
-                    label: const Text('Set as Departure'),
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ],
-              SizedBox(
-                height: 48,
-                child: FilledButton.icon(
-                  icon: const Icon(Icons.add_location_alt_outlined),
-                  onPressed: () => Navigator.pop(sheetCtx, 'dest'),
-                  label: const Text('Add as Destination'),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextButton(
-                onPressed: () => Navigator.pop(sheetCtx),
-                child: const Text('Cancel'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    final place = _normalizePlace(_placeCtrl.text);
+    if (place.isEmpty) {
+      _toast('Enter a location first.');
+      return;
+    }
 
-    if (!mounted || res == null) return;
-    if (res == 'dep' && allowSetDeparture) {
-      setState(() => _departureCtrl.text = place);
-      if (_looksLikeAirport(place)) {
-        await _openDepartureAirportForm();
-      }
-    } else if (res == 'dest') {
-      _addOrFillDestination(place);
-      final newIndex = _destinations.length - 1;
-      if (_looksLikeAirport(place)) {
-        await _openDestinationAirportForm(newIndex);
-      }
+    setState(() => _departureCtrl.text = place);
+    if (_looksLikeAirport(place)) {
+      await _openDepartureAirportForm();
     }
     _placeCtrl.clear();
     _placeFocus.unfocus();
+    _closePlaceOverlay();
+  }
+
+  Future<void> _applyDestinationFromSearch() async {
+    final place = _normalizePlace(_placeCtrl.text);
+    if (place.isEmpty) {
+      _toast('Enter a location first.');
+      return;
+    }
+
+    _addOrFillDestination(place);
+    final newIndex = _destinations.length - 1;
+    if (_looksLikeAirport(place)) {
+      await _openDestinationAirportForm(newIndex);
+    }
+    _placeCtrl.clear();
+    _placeFocus.unfocus();
+    _closePlaceOverlay();
   }
 
 
