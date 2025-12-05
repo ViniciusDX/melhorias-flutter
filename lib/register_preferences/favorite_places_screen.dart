@@ -316,7 +316,7 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
           ),
           const SizedBox(height: 8),
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: DecoratedBox(
@@ -334,22 +334,28 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
                   ),
                   child: CompositedTransformTarget(
                     link: _autocompleteLink,
-                    child: Container(
+                    child: SizedBox(
+                      height: 50,
                       key: _gmapsFieldKey,
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: TextField(
-                        controller: _gmapsCtrl,
-                        focusNode: _gmapsFocus,
-                        onChanged: _onGoogleChanged,
-                        decoration: inputDecoration(
-                          'Enter a location',
-                          prefixIcon: const Icon(Icons.search),
-                        ).copyWith(
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          fillColor: Colors.transparent,
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: TextField(
+                          controller: _gmapsCtrl,
+                          focusNode: _gmapsFocus,
+                          onChanged: _onGoogleChanged,
+                          decoration: inputDecoration(
+                            'Enter a location',
+                            prefixIcon: const Icon(Icons.search),
+                          ).copyWith(
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            fillColor: Colors.transparent,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          ),
                         ),
                       ),
                     ),
@@ -358,11 +364,11 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
               ),
               const SizedBox(width: 12),
               SizedBox(
-                height: 56,
+                height: 50,
                 child: ElevatedButton.icon(
                   onPressed: _onAddFromSearchField,
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   ),
                   icon: const Icon(Icons.add_location_alt_outlined),
@@ -371,13 +377,36 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _tableSearchCtrl,
-            onChanged: (_) => setState(() {}),
-            decoration: inputDecoration(
-              'Search favorites',
-              prefixIcon: const Icon(Icons.filter_list_rounded),
+          const SizedBox(height: 10),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withOpacity(0.35), width: 1.4),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              height: 50,
+              child: TextField(
+                controller: _tableSearchCtrl,
+                onChanged: (_) => setState(() {}),
+                decoration: inputDecoration(
+                  'Search favorites',
+                  prefixIcon: const Icon(Icons.filter_list_rounded),
+                ).copyWith(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  fillColor: Colors.transparent,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+              ),
             ),
           ),
         ],
