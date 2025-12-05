@@ -2155,7 +2155,13 @@ class _CarRequestWizardState extends State<CarRequestWizard> {
 
   void _addOrFillDestination(String text) {
     setState(() {
-      _destinations.removeWhere((e) => e.trim().isEmpty);
+      for (var i = _destinations.length - 1; i >= 0; i--) {
+        if (_destinations[i].trim().isEmpty) {
+          _destinations.removeAt(i);
+          if (_destKeys.length > i) _destKeys.removeAt(i);
+          if (_destFlights.length > i) _destFlights.removeAt(i);
+        }
+      }
       _destinations.add(text);
       _destKeys.add(UniqueKey());
 
