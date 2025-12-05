@@ -11,7 +11,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '/backend/api_requests/api_calls.dart' as API;
 import '/backend/api_requests/api_manager.dart';
-import '/widgets/add_fab_button.dart';
 import '/widgets/notifications/app_notifications.dart';
 import '../secrets.dart';
 import '../services/google_places_service.dart';
@@ -229,14 +228,6 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surface,
-      floatingActionButton: Padding(
-        padding: const EdgeInsets.only(right: 12, bottom: 12),
-        child: AddFabButton(
-          heroTag: 'favPlacesFab',
-          onTap: _onAddPlace,
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
         child: Column(
           children: [
@@ -271,6 +262,7 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
   }
 
   Widget _searchPanel() {
+    final accent = Theme.of(context).colorScheme.primary;
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
       child: Column(
@@ -323,28 +315,98 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          CompositedTransformTarget(
-            link: _autocompleteLink,
-            child: Container(
-              key: _gmapsFieldKey,
-              child: TextField(
-                controller: _gmapsCtrl,
-                focusNode: _gmapsFocus,
-                onChanged: _onGoogleChanged,
-                decoration: inputDecoration(
-                  'Enter a location',
-                  prefixIcon: const Icon(Icons.search),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: accent.withOpacity(0.35), width: 1.4),
+                    boxShadow: [
+                      BoxShadow(
+                        color: accent.withOpacity(0.12),
+                        blurRadius: 12,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: CompositedTransformTarget(
+                    link: _autocompleteLink,
+                    child: SizedBox(
+                      height: 50,
+                      key: _gmapsFieldKey,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: TextField(
+                          controller: _gmapsCtrl,
+                          focusNode: _gmapsFocus,
+                          onChanged: _onGoogleChanged,
+                          decoration: inputDecoration(
+                            'Enter a location',
+                            prefixIcon: const Icon(Icons.search),
+                          ).copyWith(
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            fillColor: Colors.transparent,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(width: 12),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _onAddFromSearchField,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  icon: const Icon(Icons.add_location_alt_outlined),
+                  label: const Text('Add'),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _tableSearchCtrl,
-            onChanged: (_) => setState(() {}),
-            decoration: inputDecoration(
-              'Search favorites',
-              prefixIcon: const Icon(Icons.filter_list_rounded),
+          const SizedBox(height: 10),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withOpacity(0.35), width: 1.4),
+              boxShadow: [
+                BoxShadow(
+                  color: accent.withOpacity(0.08),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: SizedBox(
+              height: 50,
+              child: TextField(
+                controller: _tableSearchCtrl,
+                onChanged: (_) => setState(() {}),
+                decoration: inputDecoration(
+                  'Search favorites',
+                  prefixIcon: const Icon(Icons.filter_list_rounded),
+                ).copyWith(
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  fillColor: Colors.transparent,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+              ),
             ),
           ),
         ],
@@ -505,8 +567,19 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
     );
   }
 
-  Future<void> _onAddPlace() async {
-    final initial = FavoritePlace(name: '', address: '', shared: false, sharedOn: null);
+  Future<void> _onAddFromSearchField() async {
+    final query = _gmapsCtrl.text.trim();
+    _removeOverlay();
+    await _onAddPlace(prefilledAddress: query.isNotEmpty ? query : null);
+  }
+
+  Future<void> _onAddPlace({String? prefilledAddress}) async {
+    final initial = FavoritePlace(
+      name: '',
+      address: prefilledAddress ?? '',
+      shared: false,
+      sharedOn: null,
+    );
     final place = await AppNotifications.showFavoritePlaceModal(
       context,
       title: 'Add favorite place',
@@ -514,6 +587,12 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
     );
     if (place == null) return;
     await _savePlace(place: place, id: 0);
+    setState(() {
+      _predictions.clear();
+      _gmapsCtrl.clear();
+    });
+    _placesApi.resetSession();
+    _gmapsFocus.unfocus();
   }
 
   Future<void> _editPlace(_PlaceVM p) async {
@@ -794,8 +873,19 @@ class _FavoritePlacesScreenState extends State<FavoritePlacesScreen> {
               child: ListTile(
                 dense: true,
                 leading: const Icon(Icons.place_outlined),
-                title: Text(main, style: const TextStyle(fontWeight: FontWeight.w600)),
-                subtitle: sec.isEmpty ? null : Text(sec),
+                title: Text(
+                  main,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: sec.isEmpty
+                    ? null
+                    : Text(
+                        sec,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                 onTap: () => _onPredictionTap(p),
               ),
             );
