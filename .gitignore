@@ -1,0 +1,69 @@
+# Arquivos e pastas gerados pelo Flutter/Dart
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.flutter-versions
+.pub-cache/
+.pubspec.lock
+generated_plugin_registrant.dart
+ 
+# IDEs
+.idea/
+.vscode/
+.vs/
+*.iml
+ 
+# Xcode
+ios/Flutter/Flutter.framework
+ios/Flutter/App.framework
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/flutter_assets/
+ios/ServiceDefinitions.json
+ios/Pods/
+ios/.symlinks/
+ios/build/
+ios/Runner/GeneratedPluginRegistrant.*
+*.xcuserstate
+*.xcworkspace
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+*.xcuserdata
+ 
+# Android
+android/.gradle/
+android/build/
+android/app/.cxx
+android/captures/
+android/local.properties
+android/.idea/
+ 
+# Arquivos temporários e de sistema
+*.log
+*.tmp
+*.swp
+*.DS_Store
+*.lock
+*.bak
+*.orig
+ 
+# Arquivos de teste/coverage
+coverage/
+ 
+# Arquivos que devem ser ignorados em geral
+*.mode1v3
+*.mode2v3
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+*.sconsign.dblite
+.tags*
+Icon?
+**/*sync/
+**/.vagrant/
+**/DerivedData/
+
+# FVM Version Cache
+.fvm/
