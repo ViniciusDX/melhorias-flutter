@@ -140,20 +140,27 @@ class AppDrawer extends StatelessWidget {
 }
 
 // ======================= ADMIN MENU =======================
-class _AdminMenuItems extends StatelessWidget {
+class _AdminMenuItems extends StatefulWidget {
   const _AdminMenuItems();
+
+  @override
+  State<_AdminMenuItems> createState() => _AdminMenuItemsState();
+}
+
+class _AdminMenuItemsState extends State<_AdminMenuItems> {
+  bool registerExpanded = true;
 
   TextStyle _itemTextStyle(BuildContext context) =>
       FlutterFlowTheme.of(context).bodyMedium.override(
-        font: GoogleFonts.inter(fontWeight: FontWeight.w600),
-        color: FlutterFlowTheme.of(context).alternate,
-        fontSize: 18,
-      );
+            font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            color: FlutterFlowTheme.of(context).alternate,
+            fontSize: 18,
+          );
 
   BoxDecoration _itemDecoration(BuildContext context) => BoxDecoration(
-    color: FlutterFlowTheme.of(context).secondaryText,
-    borderRadius: BorderRadius.circular(10),
-  );
+        color: FlutterFlowTheme.of(context).secondaryText,
+        borderRadius: BorderRadius.circular(10),
+      );
 
   void _safeNavigate(BuildContext context, VoidCallback go) {
     final scaffold = Scaffold.maybeOf(context);
@@ -161,10 +168,81 @@ class _AdminMenuItems extends StatelessWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) => go());
   }
 
+  Widget _registerItem({
+    required BuildContext context,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final textStyle = _itemTextStyle(context);
+
+    return Padding(
+      padding: const EdgeInsetsDirectional.fromSTEB(6, 8, 6, 0),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: onTap,
+        child: Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFF3B3B3B),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 12),
+              Icon(icon,
+                  color: FlutterFlowTheme.of(context).primaryBackground,
+                  size: 22),
+              const SizedBox(width: 12),
+              Expanded(
+                child: AutoSizeText(
+                  label,
+                  maxLines: 1,
+                  minFontSize: 12,
+                  stepGranularity: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textStyle,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionHeader(BuildContext context) {
+    final textStyle = FlutterFlowTheme.of(context).bodyMedium.override(
+          font: GoogleFonts.inter(fontWeight: FontWeight.w700),
+          color: FlutterFlowTheme.of(context).alternate,
+          fontSize: 18,
+        );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF3B3B3B),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: ListTile(
+        visualDensity: VisualDensity.compact,
+        contentPadding: const EdgeInsetsDirectional.fromSTEB(12, 0, 8, 0),
+        leading: CircleAvatar(
+          radius: 15,
+          backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
+          child: Icon(Icons.radar, color: FlutterFlowTheme.of(context).primary),
+        ),
+        title: Text('Register', style: textStyle),
+        trailing: Icon(
+          registerExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+          color: FlutterFlowTheme.of(context).alternate,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final appDrawer = context.findAncestorWidgetOfExactType<AppDrawer>()!;
-    final textStyle = _itemTextStyle(context);
     final deco = _itemDecoration(context);
 
     Widget buildItem({
@@ -194,7 +272,11 @@ class _AdminMenuItems extends StatelessWidget {
                     minFontSize: 12,
                     stepGranularity: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: textStyle,
+                    style: FlutterFlowTheme.of(context).bodyMedium.override(
+                          font: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                          color: FlutterFlowTheme.of(context).alternate,
+                          fontSize: 18,
+                        ),
                   ),
                 ),
               ],
@@ -207,23 +289,45 @@ class _AdminMenuItems extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        buildItem(
-          leading: Icon(Icons.directions_car,
-              color: FlutterFlowTheme.of(context).alternate, size: 24),
-          label: 'Register Cars',
-          onTap: () => _safeNavigate(context, appDrawer.onGoCars),
-        ),
-        buildItem(
-          leading: FaIcon(FontAwesomeIcons.userSecret,
-              color: FlutterFlowTheme.of(context).alternate, size: 24),
-          label: 'Register Drivers',
-          onTap: () => _safeNavigate(context, appDrawer.onGoDrivers),
-        ),
-        buildItem(
-          leading: Icon(Icons.local_taxi,
-              color: FlutterFlowTheme.of(context).alternate, size: 24),
-          label: 'Car Request',
-          onTap: () => _safeNavigate(context, appDrawer.onGoCarRequest),
+        Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF2F2F2F),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ExpansionTile(
+              initiallyExpanded: registerExpanded,
+              onExpansionChanged: (value) => setState(() {
+                registerExpanded = value;
+              }),
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: const EdgeInsets.only(bottom: 10),
+              backgroundColor: Colors.transparent,
+              collapsedBackgroundColor: Colors.transparent,
+              title: _sectionHeader(context),
+              children: [
+                _registerItem(
+                  context: context,
+                  icon: FontAwesomeIcons.carRear,
+                  label: 'Cars',
+                  onTap: () => _safeNavigate(context, appDrawer.onGoCars),
+                ),
+                _registerItem(
+                  context: context,
+                  icon: FontAwesomeIcons.userSecret,
+                  label: 'Drivers',
+                  onTap: () => _safeNavigate(context, appDrawer.onGoDrivers),
+                ),
+                _registerItem(
+                  context: context,
+                  icon: FontAwesomeIcons.taxi,
+                  label: 'Car Requests',
+                  onTap: () => _safeNavigate(context, appDrawer.onGoCarRequest),
+                ),
+              ],
+            ),
+          ),
         ),
         buildItem(
           leading: Icon(
@@ -235,7 +339,7 @@ class _AdminMenuItems extends StatelessWidget {
           onTap: () => _safeNavigate(
             context,
             appDrawer.onGoMyRequests ??
-                    () => context.goNamed(MyRequestsWidget.routeName),
+                () => context.goNamed(MyRequestsWidget.routeName),
           ),
         ),
         buildItem(
@@ -248,7 +352,7 @@ class _AdminMenuItems extends StatelessWidget {
           onTap: () => _safeNavigate(
             context,
             appDrawer.onGoRequestForRescheduling ??
-                    () => context.goNamed(RentalRescheduleRequestsWidget.routeName),
+                () => context.goNamed(RentalRescheduleRequestsWidget.routeName),
           ),
         ),
         buildItem(
@@ -261,7 +365,7 @@ class _AdminMenuItems extends StatelessWidget {
           onTap: () => _safeNavigate(
             context,
             appDrawer.onGoRegisterPreferences ??
-                    () => context.goNamed(RegisterPreferencesNav.routeName),
+                () => context.goNamed(RegisterPreferencesNav.routeName),
           ),
         ),
       ],
