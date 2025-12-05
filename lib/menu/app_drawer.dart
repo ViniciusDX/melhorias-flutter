@@ -177,15 +177,15 @@ class _AdminMenuItemsState extends State<_AdminMenuItems> {
     final textStyle = _itemTextStyle(context);
 
     return Padding(
-      padding: const EdgeInsetsDirectional.fromSTEB(6, 8, 6, 0),
+      padding: const EdgeInsetsDirectional.fromSTEB(10, 10, 10, 0),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: onTap,
         child: Container(
-          height: 44,
+          height: 47,
           decoration: BoxDecoration(
             color: const Color(0xFF3B3B3B),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
@@ -225,17 +225,13 @@ class _AdminMenuItemsState extends State<_AdminMenuItems> {
       ),
       child: ListTile(
         visualDensity: VisualDensity.compact,
-        contentPadding: const EdgeInsetsDirectional.fromSTEB(12, 0, 8, 0),
+        contentPadding: const EdgeInsetsDirectional.fromSTEB(10, 0, 10, 0),
         leading: CircleAvatar(
           radius: 15,
           backgroundColor: FlutterFlowTheme.of(context).primaryBackground,
           child: Icon(Icons.radar, color: FlutterFlowTheme.of(context).primary),
         ),
         title: Text('Register', style: textStyle),
-        trailing: Icon(
-          registerExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
-          color: FlutterFlowTheme.of(context).alternate,
-        ),
       ),
     );
   }
@@ -305,6 +301,8 @@ class _AdminMenuItemsState extends State<_AdminMenuItems> {
               childrenPadding: const EdgeInsets.only(bottom: 10),
               backgroundColor: Colors.transparent,
               collapsedBackgroundColor: Colors.transparent,
+              iconColor: FlutterFlowTheme.of(context).alternate,
+              collapsedIconColor: FlutterFlowTheme.of(context).alternate,
               title: _sectionHeader(context),
               children: [
                 _registerItem(
